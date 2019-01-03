@@ -8,6 +8,7 @@ var bodyParser = require('body-parser');
 
 var api = require('./services/apis');
 var log = require('./logger');
+const queue = require('./queue-sending');
 
 // Utilities
 //var os = require('os');
@@ -22,29 +23,20 @@ app.use((req, res, next) => {
     next();
 })
 
-//API route
 app.use('/', api);
-
-//Middleware to catch 404 error
 app.use(function (req, res) {
     res.status(404).send({ url: req.originalUrl + ' not found' });
 })
 
-//Server start
 const server_port = process.env.PORT || 8888;
+
 if (!sticky.listen(http, server_port)) {
     http.once('listening', function () {
         console.log('Server listening on *:' + server_port);
-        //Write log file
-        log.info('Server listening on *:' + server_port);
     });
 
-    //Cache Register
     try {
-        //Cache info
-        let redis_host = '127.0.0.1';
-        let redis_port = 6379;
-        io.adapter(redisAdapter({ host: redis_host, port: redis_port }));
+        io.adapter(redisAdapter({ host: '127.0.0.1', port: 6379 }));
         io.of('/').adapter.on('error', err => {
             console.log(err);
         });
@@ -54,7 +46,6 @@ if (!sticky.listen(http, server_port)) {
         log.error(error);
     }
 
-    //Error handling
     http.once('error', err => {
         console.log(err);
     });
@@ -63,27 +54,22 @@ else {
     console.log(`Sticky session: child server on port ${server_port}, worker id ${cluster.worker.id}`);
 }
 
-//listen on every connection
 io.on('connection', function (socket) {
-    console.log('New user connected')
-    //default username
     socket.username = "Anonymous"
-    
-    //listen on new_message
     socket.on('clientmessage', (data) => {
-        console.log(`client message: ${JSON.stringify(data)}`);
-        //broadcast the new message
-        //io.emit('serveremit', msg);
-        io.emit('serveremit', {message : data.message, username : socket.username});
-    });
+        io.emit('serveremit', { message: data.message, username: socket.username });
 
-    //listen on user login
+        try {
+            if (data !== undefined || data !== '')
+                queue.writeToQueue(JSON.stringify(data));
+        } catch (err) {
+            log.error(err);
+        }
+    });
     socket.on('user_login', (data) => {
         socket.username = data.username
     })
-
-    //listen on typing
     socket.on('typing', (data) => {
-    	socket.broadcast.emit('typing', {username : socket.username})
+        socket.broadcast.emit('typing', { username: socket.username })
     });
 });
