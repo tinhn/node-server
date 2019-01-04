@@ -6,9 +6,9 @@ var sticky = require('sticky-session');
 var cluster = require('cluster');
 var bodyParser = require('body-parser');
 
-var api = require('./services/apis');
-var log = require('./logger');
-const queue = require('./queue-sending');
+var api = require('./src/services/apis');
+var log = require('./src/logger');
+const queue = require('./src/queue-sending');
 
 // Utilities
 //var os = require('os');
@@ -30,22 +30,23 @@ app.use(function (req, res) {
 
 const server_port = process.env.PORT || 8888;
 
+try {
+    let redis_host = 'localhost';
+    let redis_port = 6379;
+    io.adapter(redisAdapter({ host: redis_host, port: redis_port }));
+    io.of('/').adapter.on('error', err => {
+        console.log(err);
+    });
+    console.log(`Redis connection to ${redis_host}:${redis_port}`);
+} catch (error) {
+    console.log(error);
+    log.error(error);
+}
+
 if (!sticky.listen(http, server_port)) {
     http.once('listening', function () {
         console.log('Server listening on *:' + server_port);
     });
-
-    try {
-        io.adapter(redisAdapter({ host: '127.0.0.1', port: 6379 }));
-        io.of('/').adapter.on('error', err => {
-            console.log(err);
-        });
-        console.log(`Redis connection to ${redis_host}:${redis_port}`);
-    } catch (error) {
-        console.log(error);
-        log.error(error);
-    }
-
     http.once('error', err => {
         console.log(err);
     });
@@ -61,7 +62,7 @@ io.on('connection', function (socket) {
 
         try {
             if (data !== undefined || data !== '')
-                queue.writeToQueue(JSON.stringify(data));
+                queue.publishDataToQueue(JSON.stringify(data));
         } catch (err) {
             log.error(err);
         }
