@@ -1,7 +1,8 @@
 var amqp = require('amqplib/callback_api');
+const config = require('./config');
 
 var channel = null;
-const rabbit_queue = 'chat.message';
+var rabbit_queue = config.rabbit.queue_name;
 
 //Queue info
 class QueueHelper {
@@ -10,7 +11,9 @@ class QueueHelper {
   }
 
   async startConnection() {
-    amqp.connect('amqp://dev:dev@localhost:5672/', function (err, conn) {
+    //let rabbit_url = 'amqp://dev:dev@192.168.100.112:5672/';
+    let rabbit_url = `amqp://${config.rabbit.user}:${config.rabbit.password}@${config.rabbit.host}:${config.rabbit.port}/`;
+    amqp.connect(rabbit_url, function (err, conn) {
       if (err) {
         console.error("[AMQP]", err.message);
         return setTimeout(startConnection, 1000);
@@ -25,7 +28,7 @@ class QueueHelper {
         return setTimeout(startConnection, 1000);
       });
 
-      //console.log("[AMQP] connected");
+      console.log(`[AMQP] ${rabbit_url} connected`);
       conn.createChannel(function (err, ch) {
         ch.on("error", function (err) {
           console.error("[AMQP] channel error", err.message);
@@ -34,11 +37,11 @@ class QueueHelper {
         ch.on("close", function () {
           console.log("[AMQP] channel closed");
         });
-  
+
         ch.assertQueue(rabbit_queue);
         channel = ch;
       });
-      
+
     });
   }
 

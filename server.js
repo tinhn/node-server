@@ -10,6 +10,8 @@ var api = require('./src/services/apis');
 var log = require('./src/logger');
 const queue = require('./src/queue-sending');
 
+const config = require('./src/config');
+
 // Utilities
 //var os = require('os');
 //var networkInterfaces = os.networkInterfaces();
@@ -28,11 +30,11 @@ app.use(function (req, res) {
     res.status(404).send({ url: req.originalUrl + ' not found' });
 })
 
-const server_port = process.env.PORT || 8888;
+const server_port = config.socketaddress;
 
 try {
-    let redis_host = 'localhost';
-    let redis_port = 6379;
+    let redis_host = config.redis.host;
+    let redis_port = config.redis.port;
     io.adapter(redisAdapter({ host: redis_host, port: redis_port }));
     io.of('/').adapter.on('error', err => {
         console.log(err);

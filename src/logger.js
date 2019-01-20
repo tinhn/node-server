@@ -1,8 +1,9 @@
 var {createLogger, format, transports} = require('winston');
 var logrotate = require('winston-daily-rotate-file');
+const config = require('./config');
 
 var fs = require('fs');
-const logDirs = 'logs';
+const logDirs = config.logtrackingdir;
 
 if(!fs.existsSync(logDirs)){
     fs.mkdirSync(logDirs);
